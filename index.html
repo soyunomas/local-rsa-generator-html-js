@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Pares de Claves RSA</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <!-- Bootstrap Icons (para el icono de copiar) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <!-- Estilos CSS embebidos -->
+    <style>
+        /* Asegura que las textareas usen una fuente monoespaciada para mejor legibilidad de las claves */
+        .key-textarea {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.85rem; /* Tamaño ligeramente más pequeño */
+            white-space: pre; /* Mantiene los saltos de línea del formato PEM */
+            word-wrap: break-word; /* Asegura que líneas largas no desborden */
+            background-color: #f8f9fa; /* Un fondo ligeramente diferente */
+            height: 250px; /* Altura fija para consistencia */
+            resize: none; /* Deshabilitar redimensionamiento manual si se desea */
+        }
+
+        /* Ajuste para que las tarjetas tengan una altura consistente */
+        .card {
+            display: flex;
+            flex-direction: column;
+            height: 100%; /* Asegura que la tarjeta ocupe el espacio del contenedor */
+        }
+        .card-body {
+            flex-grow: 1; /* Hace que el cuerpo de la tarjeta crezca para llenar el espacio */
+            display: flex; /* Permite que el textarea crezca */
+        }
+        .card-body textarea {
+            flex-grow: 1; /* Hace que el textarea ocupe todo el espacio disponible en el card-body */
+        }
+
+        /* Feedback visual para el botón de copiar */
+        .copy-btn .bi-check-lg {
+            color: green;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container mt-5 mb-5">
+        <div class="text-center mb-4">
+            <h1>Generador de Pares de Claves RSA</h1>
+            <p class="lead">Genera un nuevo par de claves RSA (pública y privada) en formato PEM.</p>
+        </div>
+
+        <div class="row justify-content-center mb-4">
+            <div class="col-md-8 col-lg-6 col-xl-5">
+                <label for="bitSize" class="form-label">Tamaño de la clave (bits):</label>
+                <div class="input-group">
+                    <input type="number" class="form-control" id="bitSize" value="2048" min="512" step="512" list="commonBitSizes">
+                    <datalist id="commonBitSizes">
+                        <option value="1024"></option>
+                        <option value="2048"></option>
+                        <option value="3072"></option>
+                        <option value="4096"></option>
+                    </datalist>
+                    <button class="btn btn-primary" type="button" id="refreshButton">
+                        <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true" id="loadingSpinner"></span>
+                        Generar Nuevo Par
+                    </button>
+                </div>
+                <div class="form-text text-center mt-1">Tamaños comunes: 1024, 2048, 4096.</div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Clave Pública -->
+            <div class="col-md-6 mb-3 d-flex">
+                <div class="card w-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        Clave Pública
+                        <button class="btn btn-outline-secondary btn-sm copy-btn" data-target="#publicKey" title="Copiar al portapapeles">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <textarea id="publicKey" class="form-control key-textarea" readonly placeholder="Aquí aparecerá la clave pública..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Clave Privada -->
+            <div class="col-md-6 mb-3 d-flex">
+                 <div class="card w-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        Clave Privada
+                         <button class="btn btn-outline-secondary btn-sm copy-btn" data-target="#privateKey" title="Copiar al portapapeles">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <textarea id="privateKey" class="form-control key-textarea" readonly placeholder="Aquí aparecerá la clave privada..."></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+         <div class="alert alert-warning mt-3" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i> <strong>Importante:</strong> La generación de claves ocurre localmente en tu navegador usando JavaScript. La clave privada **no** se envía a ningún servidor. ¡Guárdala de forma segura y no la compartas!
+        </div>
+        <footer class="text-center text-muted mt-4">
+            <small>Usando <a href="https://github.com/travist/jsencrypt" target="_blank" rel="noopener noreferrer">JSEncrypt</a> para la generación RSA en el navegador.</small>
+        </footer>
+    </div>
+
+    <!-- Librería JSEncrypt (para la generación RSA) -->
+    <!-- ****** ¡HASH DE INTEGRIDAD CORREGIDO AQUÍ! ****** -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsencrypt/3.3.2/jsencrypt.min.js" integrity="sha512-94ncgEEqkuZ4yNTFmu2dSn1TJ6Ij+ANQqpR7eLVU99kzvYzu6UjBxuVoNHtnd29R+T6nvK+ugCVI698pbyEkvQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <!-- Bootstrap JS Bundle (Necesario para algunos componentes de Bootstrap, aunque no se usen activamente aquí) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+
+    <!-- Script JavaScript embebido -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const bitSizeInput = document.getElementById('bitSize');
+            const refreshButton = document.getElementById('refreshButton');
+            const publicKeyTextarea = document.getElementById('publicKey');
+            const privateKeyTextarea = document.getElementById('privateKey');
+            const copyButtons = document.querySelectorAll('.copy-btn');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+
+            // Función para generar el par de claves
+            function generateKeys() {
+                const bits = parseInt(bitSizeInput.value, 10);
+
+                // Validación simple del tamaño de bits
+                if (isNaN(bits) || bits < 512 || bits % 8 !== 0) {
+                    alert("Por favor, introduce un tamaño de bits válido (múltiplo de 8, mínimo 512).");
+                    return;
+                }
+
+                // Mostrar indicador de carga y deshabilitar botón
+                publicKeyTextarea.value = 'Generando...';
+                publicKeyTextarea.placeholder = 'Generando...'; // Actualizar placeholder también
+                privateKeyTextarea.value = 'Generando...';
+                privateKeyTextarea.placeholder = 'Generando...';
+                refreshButton.disabled = true;
+                loadingSpinner.classList.remove('d-none'); // Mostrar spinner
+
+                // Usar setTimeout para permitir que la UI se actualice antes de la operación intensiva
+                // y para dar una sensación de que algo está ocurriendo.
+                setTimeout(() => {
+                    try {
+                        // Verificar si JSEncrypt se cargó correctamente
+                        if (typeof JSEncrypt === 'undefined') {
+                            throw new Error("La librería JSEncrypt no se cargó correctamente. Verifica la conexión a internet o la consola del navegador.");
+                        }
+
+                        console.log(`Iniciando generación de claves RSA de ${bits} bits...`);
+                        const startTime = performance.now();
+
+                        // Inicializar JSEncrypt con el tamaño de clave deseado
+                        const crypt = new JSEncrypt({ default_key_size: bits });
+
+                        // Forzar la generación síncrona (getKey es síncrono en JSEncrypt v3 para la generación inicial)
+                        crypt.getKey(); // Asegura que la generación ocurra aquí
+
+                        const publicKey = crypt.getPublicKeyB64();
+                        const privateKey = crypt.getPrivateKeyB64();
+
+                        // Formatear a PEM
+                        const publicKeyPEM = `-----BEGIN PUBLIC KEY-----\n${formatAsPem(publicKey)}\n-----END PUBLIC KEY-----`;
+                        const privateKeyPEM = `-----BEGIN RSA PRIVATE KEY-----\n${formatAsPem(privateKey)}\n-----END RSA PRIVATE KEY-----`;
+
+                        publicKeyTextarea.value = publicKeyPEM;
+                        privateKeyTextarea.value = privateKeyPEM;
+
+                        const endTime = performance.now();
+                        console.log(`Claves generadas en ${((endTime - startTime) / 1000).toFixed(2)} segundos.`);
+
+                    } catch (error) {
+                        console.error("Error generando claves:", error);
+                        const errorMsg = `Error al generar las claves: ${error.message}`;
+                        publicKeyTextarea.value = errorMsg;
+                        privateKeyTextarea.value = errorMsg;
+                         publicKeyTextarea.placeholder = errorMsg;
+                         privateKeyTextarea.placeholder = errorMsg;
+                        alert(errorMsg + "\nRevisa la consola para más detalles.");
+                    } finally {
+                         refreshButton.disabled = false; // Rehabilitar el botón
+                         loadingSpinner.classList.add('d-none'); // Ocultar spinner
+                    }
+                }, 100); // Pequeño delay para refresco de UI y percepción de proceso
+            }
+
+             // Función auxiliar para formatear Base64 a PEM (líneas de 64 caracteres)
+            function formatAsPem(base64String) {
+                 if (!base64String) return ''; // Manejar caso donde la clave no se generó
+                 // Eliminar posibles saltos de línea existentes antes de volver a formatear
+                 const cleanedString = base64String.replace(/[\r\n]+/g, '');
+                 return cleanedString.replace(/(.{64})/g, '$1\n').trim(); // Añadir trim para quitar posible salto de línea final
+            }
+
+
+            // Función para copiar texto al portapapeles
+            function copyToClipboard(event) {
+                const button = event.currentTarget;
+                const targetSelector = button.getAttribute('data-target');
+                const targetTextarea = document.querySelector(targetSelector);
+                const originalIconHTML = button.innerHTML; // Guardar el icono original (HTML completo)
+
+                // Verificar si hay contenido para copiar y si el API está disponible
+                if (targetTextarea && targetTextarea.value && targetTextarea.value.startsWith('-----BEGIN')) { // Verificar que no sea un mensaje de error
+                    // Usar API Clipboard si está disponible
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText(targetTextarea.value)
+                            .then(() => {
+                                // Feedback visual temporal: Cambiar a icono de check
+                                button.innerHTML = '<i class="bi bi-check-lg"></i>';
+                                button.disabled = true; // Deshabilitar brevemente para evitar doble clic
+
+                                setTimeout(() => {
+                                    button.innerHTML = originalIconHTML; // Restaurar icono original
+                                    button.disabled = false; // Rehabilitar
+                                }, 1500); // Restaurar después de 1.5 segundos
+                            })
+                            .catch(err => {
+                                console.error('Error al copiar al portapapeles con API: ', err);
+                                // Intentar método deprecado como fallback
+                                fallbackCopyToClipboard(targetTextarea.value, button, originalIconHTML);
+                            });
+                    } else {
+                        // Usar método deprecado si la API moderna no está disponible
+                         fallbackCopyToClipboard(targetTextarea.value, button, originalIconHTML);
+                    }
+                } else if (!targetTextarea.value || !targetTextarea.value.startsWith('-----BEGIN')) {
+                     alert('No hay clave válida para copiar.');
+                }
+            }
+
+            // Fallback para copiar usando execCommand (deprecado pero con mayor compatibilidad)
+            function fallbackCopyToClipboard(text, button, originalIconHTML) {
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                // Evitar scroll al añadir el elemento
+                textArea.style.position = 'fixed';
+                textArea.style.top = '0';
+                textArea.style.left = '0';
+                textArea.style.opacity = '0';
+
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+
+                try {
+                    const successful = document.execCommand('copy');
+                    if (successful) {
+                         // Feedback visual temporal: Cambiar a icono de check
+                        button.innerHTML = '<i class="bi bi-check-lg"></i>';
+                        button.disabled = true; // Deshabilitar brevemente
+
+                        setTimeout(() => {
+                            button.innerHTML = originalIconHTML; // Restaurar icono original
+                            button.disabled = false; // Rehabilitar
+                        }, 1500);
+                    } else {
+                         console.error('Fallback: No se pudo copiar la clave.');
+                         alert('No se pudo copiar la clave usando el método alternativo.');
+                    }
+                } catch (err) {
+                    console.error('Fallback: Error al copiar la clave: ', err);
+                    alert('Error al intentar copiar la clave.');
+                }
+
+                document.body.removeChild(textArea);
+            }
+
+            // Asignar eventos
+            refreshButton.addEventListener('click', generateKeys);
+            copyButtons.forEach(button => {
+                button.addEventListener('click', copyToClipboard);
+            });
+        });
+    </script>
+
+</body>
+</html>
